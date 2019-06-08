@@ -76,8 +76,8 @@ class OdeintAdjointMethod(torch.autograd.Function):
 
             vjp_params = vjp_y_and_params
             #### Extra term from cost
-            #vjp_params = [a - b for a, b in zip(vjp_y_and_params, dLdtheta)]
-            #vjp_y = [a - b for a, b in zip(vjp_y, dLdy)]
+            vjp_params = [a - b for a, b in zip(vjp_y_and_params, dLdtheta)]
+            vjp_y = [a - b for a, b in zip(vjp_y, dLdy)]
 
             # autograd.grad returns None if no gradient, set to zero.
             vjp_t = torch.zeros_like(t) if vjp_t is None else vjp_t
@@ -133,8 +133,8 @@ class OdeintAdjointMethod(torch.autograd.Function):
             time_vjps.append(adj_time)
             time_vjps = torch.cat(time_vjps[::-1])
 
-            #result = (*adj_y, None, time_vjps, adj_params, None, None, None, None, None)
-            #print(result)
+            result = (*adj_y, None, time_vjps, adj_params, None, None, None, None, None)
+            print(result)
 
             return (*adj_y, None, time_vjps, adj_params, None, None, None, None, None)
 

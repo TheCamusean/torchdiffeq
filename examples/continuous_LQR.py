@@ -117,7 +117,7 @@ class IntegerLoss(nn.Module):
         xt = torch.transpose(x, d - 2, d - 1)
         xQx = torch.matmul(xQ, xt)
 
-        loss = xQx + uRu
+        loss = uRu
         return loss
 
 
@@ -216,8 +216,8 @@ class RunningAverageMeter(object):
 Q =  torch.tensor(Qx).type(torch.FloatTensor)
 R =  torch.tensor(Qu).type(torch.FloatTensor)
 
-def loss_LQR(x,u, batch_t):
-    d = u.ndimension()
+def loss_LQR(x,batch_t):
+    d = x.ndimension()
 
     zero = torch.tensor([0.])
     delta_T = batch_t[1:] - batch_t[:-1]
@@ -229,7 +229,7 @@ def loss_LQR(x,u, batch_t):
     # uRu = 0.025*uRu
     #uRu = torch.matmul(delta.view(10,1,1,1),uRu)
 
-    x = x - 10
+
     xQ = torch.matmul(x, Q)
     xt = torch.transpose(x, d-2, d-1)
     xQx = torch.matmul(xQ, xt)
@@ -286,15 +286,23 @@ if __name__ == '__main__':
         pred_y = func(batch_y0, batch_t)
         #pred_y2 = odeint(func2,batch_y0,batch_t)
 
-        pred_control = controller(batch_t,pred_y)
-        #print(pred_control)
+
+        loss = torch.mean(loss_LQR(pred_y,batch_t))
+        print("############## TIME ###############")
+        print(batch_t)
+        print(batch_y0)
 
 
-        loss = torch.mean(loss_LQR(pred_y,pred_control,batch_t))
+
+
+        print("############## LOSS ###############")
         print(loss)
+
+
         info = loss.backward()
         optimizer.step()
         #print(loss)
+
 
         #time_meter.update(time.time() - end)
         #loss_meter.update(loss.item())
@@ -302,10 +310,6 @@ if __name__ == '__main__':
         if itr % args.test_freq == 0:
             with torch.no_grad():
                 pred_y = func(true_y0, t)
-                pred_control = controller(t, pred_y)
-
-                loss = loss_LQR(pred_y,pred_control,t)
-                loss = torch.mean(loss)
 
                 y_plot = pred_y.numpy()
                 timer = t.numpy()
@@ -316,13 +320,6 @@ if __name__ == '__main__':
                 plt.draw()
 
                 plt.pause(0.001)
-                print('Iter {:04d} | Total Loss {:.6f}'.format(itr, loss.item()))
 
-
-                # print("Optimal parameters of LQR")
-                # print(lqr.optimal_controller())
-                # print("Learned parameters")
-                # for parameter in controller.parameters():
-                #     print(parameter)
                 ii += 1
 
