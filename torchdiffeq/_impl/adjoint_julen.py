@@ -126,7 +126,7 @@ class OdeintAdjointMethod(torch.autograd.Function):
                 if len(adj_time) > 0: adj_time = adj_time[1]
                 if len(adj_params) > 0: adj_params = adj_params[1]
 
-                adj_y = tuple(adj_y_ + grad_output_[i - 1] for adj_y_, grad_output_ in zip(adj_y, grad_output))
+                #adj_y = tuple(adj_y_ + grad_output_[i - 1] for adj_y_, grad_output_ in zip(adj_y, grad_output))
 
                 del aug_y0, aug_ans
 
@@ -134,7 +134,7 @@ class OdeintAdjointMethod(torch.autograd.Function):
             time_vjps = torch.cat(time_vjps[::-1])
 
             result = (*adj_y, None, time_vjps, adj_params, None, None, None, None, None)
-            print(result)
+            #print(result)
 
             return (*adj_y, None, time_vjps, adj_params, None, None, None, None, None)
 

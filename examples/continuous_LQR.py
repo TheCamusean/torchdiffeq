@@ -117,7 +117,7 @@ class IntegerLoss(nn.Module):
         xt = torch.transpose(x, d - 2, d - 1)
         xQx = torch.matmul(xQ, xt)
 
-        loss = uRu
+        loss = uRu + xQx
         return loss
 
 
@@ -211,8 +211,6 @@ class RunningAverageMeter(object):
 
 
 
-
-
 Q =  torch.tensor(Qx).type(torch.FloatTensor)
 R =  torch.tensor(Qu).type(torch.FloatTensor)
 
@@ -288,9 +286,9 @@ if __name__ == '__main__':
 
 
         loss = torch.mean(loss_LQR(pred_y,batch_t))
-        print("############## TIME ###############")
-        print(batch_t)
-        print(batch_y0)
+        # print("############## TIME ###############")
+        # print(batch_t)
+        # print(batch_y0)
 
 
 
