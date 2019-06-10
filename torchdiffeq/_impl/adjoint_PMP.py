@@ -38,35 +38,41 @@ class OdeintAdjointMethod(torch.autograd.Function):
                 t = t.to(y[0].device).detach().requires_grad_(True)
                 y = tuple(y_.detach().requires_grad_(True) for y_ in y)
 
-                u = (func.base_func.controller(t,y[0]),)
+                t_plus = t.unsqueeze(0)
+                t_plus = t_plus.unsqueeze(1)
+                u = (func.base_func.controller(t_plus,y[0]),)
 
-                y_1 = (func.base_func.linear_dyn(t,y[0],u[0]),)
+                y_1 = (func.base_func.dynamics(t,y[0],u[0]),)
 
                 loss_integer = integer_loss(u, y)
 
                 #func_eval = func(t, y)
 
 
-                dudy, *dudtheta = torch.autograd.grad(
-                    u, y + f_params, [torch.ones([20, 1, 2]), ],
+                dudtheta = torch.autograd.grad(
+                    u, f_params, [torch.ones([1, 1]), ],
                     allow_unused=True, retain_graph=True
                 )
 
                 ############ We have to compute the gradient of the integer_loss with respect to u and with respect to x
                 dLdy, dLdu, *dLdtheta = torch.autograd.grad(
-                    loss_integer, y + u + f_params, [torch.ones([20,1,1]),],
+                    loss_integer, y + u + f_params, (torch.ones([1,1]),),
                     allow_unused=True, retain_graph=True
                 )
+                # print("Logic loss y: ", 2*20*y[0][0,0], "  & ", 2*10*y[0][0,1])
+                # print("From autograd: ", dLdy)
+                #
+                # print("Logic loss u: ", 2*u[0][0,0], "  & ", 2*u[0][0,1])
+                # print("From autograd: ", dLdu)
 
                 ### This grad is actually pretty smart. Using the autograd, he knows he is going to have a chain rule, of dl/dout dout/dx, so he is smart and says
                 ### as d lambda/dt = -lambda df()/dx , and lambda=grad_output dl/dout = lambda
                 vjp_t, vjp_y, dfdu, *vjp_y_and_params = torch.autograd.grad(
                     y_1, (t,) + y + u + f_params,
-                    tuple(-adj_y_ for adj_y_ in adj_y), allow_unused=True, retain_graph=True
+                    tuple(-adj_y_ for adj_y_ in adj_y), allow_unused=True
                 )
                 ## From total derivative to partial derivative
-                vjp_y = vjp_y - dfdu*dudy
-                dLdy  =  dLdy - dLdu*dudy
+
 
 
 
@@ -76,8 +82,10 @@ class OdeintAdjointMethod(torch.autograd.Function):
 
             vjp_params = vjp_y_and_params
             #### Extra term from cost
-            vjp_params = [a - b for a, b in zip(vjp_y_and_params, dLdtheta)]
-            vjp_y = [a - b for a, b in zip(vjp_y, dLdy)]
+            if(dLdtheta[0] is not None):
+                vjp_params = [a - b for a, b in zip(vjp_y_and_params, dLdtheta)]
+            if(dLdy is not None):
+                vjp_y = [a - b for a, b in zip(vjp_y, dLdy)]
 
             # autograd.grad returns None if no gradient, set to zero.
             vjp_t = torch.zeros_like(t) if vjp_t is None else vjp_t

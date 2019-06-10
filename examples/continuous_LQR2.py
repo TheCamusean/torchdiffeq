@@ -12,11 +12,11 @@ from torchdiffeq._impl.adjoint_PMP import odeint_adjoint as odeint
 
 parser = argparse.ArgumentParser('ODE demo')
 parser.add_argument('--method', type=str, choices=['dopri5', 'adams'], default='dopri5')
-parser.add_argument('--data_size', type=int, default=1000)
-parser.add_argument('--batch_time', type=int, default=50)
+parser.add_argument('--data_size', type=int, default=500)
+parser.add_argument('--batch_time', type=int, default=100)
 parser.add_argument('--batch_size', type=int, default=20)
 parser.add_argument('--niters', type=int, default=16000)
-parser.add_argument('--test_freq', type=int, default=10)
+parser.add_argument('--test_freq', type=int, default=20)
 parser.add_argument('--viz', action='store_true')
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--adjoint', action='store_true')
@@ -32,51 +32,21 @@ device = torch.device('cuda:' + str(1) if torch.cuda.is_available() else 'cpu')
 
 # from optimal_control.LQR import LQR
 # ###################### System Dynamics and cost ######################
-#
-A = np.array([[2.,-0.3],[0.04,-0.01]])
+A = np.array([[-2.,0.3],[0.8,-0.1]])
 
-A = np.array([[2.,-3],[0.04,-0.01]])
 B = np.array([[10.0,-3.0],[0.0,3.0]])
 
 
-Qx = np.array([[20.,0.],[0.0,10.0]])
-Qu = np.array([[1,0],[0,1]])
-
-# lqr = LQR(A,B,Qx,Qu)
-#
-# t = np.linspace(0,25,100)
-# x0 = np.array([[-3., 10.]])
-#
-# y = lqr.optimal_traj(t,x0)
-#
-# y2 = lqr.passive_traj(t,x0)
-#
-# y = y.numpy()
-# plt.plot(t,y[:,0,0])
-# plt.plot(t,y[:,0,1])
-#
-# plt.figure()
-# y2 = y2.numpy()
-# plt.plot(t,y2[:,0,0])
-# plt.plot(t,y2[:,0,1])
-#
-# plt.show()
-
+Qx = np.array([[10.,0.],[0.0,10.0]])
+Qu = np.array([[0,0],[0,0]])
 #######################################################################
 
 
-
-true_y0 = torch.tensor([[10., -10.]])
-t = torch.linspace(0.01, 10., args.data_size)
-true_A = torch.tensor([[-0.1, 2.0], [-2.0, -0.1]])
-
-## Non-Linear System
-true_A_lin = torch.tensor([[1.5, 0], [0, 2]])
-true_A_pow2 = torch.tensor([[-1, 0], [0, -0.5]])
-true_A_mix = torch.tensor([[-0.5, -1.5]])
+true_y0 = torch.tensor([[10., 10.]])
 
 
-t = torch.linspace(0.01, 25., args.data_size)
+
+t = torch.linspace(0.01, 55., args.data_size)
 true_y = torch.empty(1000,1,2).uniform_(-10,10)
 
 def get_batch():
@@ -100,17 +70,19 @@ class IntegerLoss(nn.Module):
     def forward(self, u, x):
         d=x.dim()
 
-        uR = torch.matmul(u, self.R)
+
+        x = x-5
+        # uRu = u.mm(R.mm(u.T))
+        uR = torch.matmul(u, R)
         ut = u.t()
         uRu = torch.matmul(uR, ut)
 
-        xQ = torch.matmul(x, self.Q)
+        xQ = torch.matmul(x, Q)
         xt = x.t()
         xQx = torch.matmul(xQ, xt)
 
         loss = xQx + uRu
-        #loss = torch.clamp(loss, min=-1000, max=1000)
-
+        #print(loss)
         return loss
 
 
@@ -211,11 +183,12 @@ R =  torch.tensor(Qu).type(torch.FloatTensor)
 def loss_LQR(x,batch_t):
     d = x.ndimension()
 
+    x = x-5
     xt = torch.transpose(x, d-2, d-1)
     Qx = torch.matmul(Q,xt)
     xQx = torch.matmul(x, Qx)
     # loss = torch.add(uRu_int,xQx_int)
-    #xQx = torch.clamp(xQx, min = -1000, max = 1000)
+    # loss_clamp = torch.clamp(loss, min = -1000, max = 1000)
 
     return xQx
 
@@ -273,7 +246,7 @@ if __name__ == '__main__':
 
 
         print("############## LOSS ###############")
-        # print(pred_y)
+        #print(pred_y)
         print(loss)
 
 
