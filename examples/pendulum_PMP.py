@@ -36,8 +36,8 @@ class IntegerLoss(nn.Module):
 
 
     def forward(self, u, x):
-        x = x[0, 0] - np.pi
-        loss = x*x*0.5
+        x = x[0, 0] + np.pi
+        loss = x*x
         return loss
 
 
@@ -46,11 +46,11 @@ class Controller(nn.Module):
         super(Controller, self).__init__()
 
         self.net = nn.Sequential(
-            nn.Linear(dim_t, 10),
+            nn.Linear(dim_t, 50),
             nn.Tanh(),
-            nn.Linear(10, dim_u),
-            #nn.Tanh()
-            # nn.Linear(5, dim_u),
+            nn.Linear(50, 50),
+            nn.Tanh(),
+            nn.Linear(50, dim_u),
         )
 
         for m in self.net.modules():
@@ -113,8 +113,10 @@ class ODE_net(nn.Module):
 
 def loss_LQR(x,batch_t):
 
-    x = x[:,0,0]-np.pi
-    loss = x*x*40
+    x1 = x[:,0,0] + np.pi
+
+    y = x[:,0,1]
+    loss = x1*x1
 
     return loss
 
@@ -140,7 +142,7 @@ if __name__ == '__main__':
     func = ODE_net(close_dyn, loss_integer)
 
 
-    optimizer = torch.optim.Adam(func.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+    optimizer = torch.optim.Adam(func.parameters(), lr=0.0001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
 
 
     end = time.time()
@@ -150,7 +152,7 @@ if __name__ == '__main__':
         optimizer.zero_grad()
 
         pred_y = func(x_0, t)
-        loss = loss_LQR(pred_y,t)[-1]
+        loss = torch.mean(loss_LQR(pred_y,t))
 
 
         print("############## LOSS ###############")

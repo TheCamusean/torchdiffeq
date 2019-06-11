@@ -81,11 +81,12 @@ class OdeintAdjointMethod(torch.autograd.Function):
             #vjp_y = vjp_y_and_params[:n_tensors]
 
             vjp_params = vjp_y_and_params
+
             #### Extra term from cost
-            if(dLdtheta[0] is not None):
-                vjp_params = [a - b for a, b in zip(vjp_y_and_params, dLdtheta)]
-            if(dLdy is not None):
-                vjp_y = [a - b for a, b in zip(vjp_y, dLdy)]
+            # if(dLdtheta[0] is not None):
+            #     vjp_params = [a - b for a, b in zip(vjp_y_and_params, dLdtheta)]
+            # if(dLdy is not None):
+            #     vjp_y = [a - b for a, b in zip(vjp_y, dLdy)]
 
             # autograd.grad returns None if no gradient, set to zero.
             vjp_t = torch.zeros_like(t) if vjp_t is None else vjp_t
