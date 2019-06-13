@@ -11,6 +11,11 @@ from torchdiffeq._impl.adjoint_PMP import odeint_adjoint as odeint
 
 
 
+save_dir = "/home/julen/Documents/IAS/PMP_NODE/torchdiffeq/examples/pendulum_direct/"
+model_name = "pendulum_init.pt"
+
+
+
 parser = argparse.ArgumentParser('ODE pendulum')
 parser.add_argument('--method', type=str, choices=['dopri5', 'adams'], default='dopri5')
 parser.add_argument('--data_size', type=int, default=500)
@@ -36,7 +41,7 @@ class IntegerLoss(nn.Module):
 
 
     def forward(self, u, x):
-        x = x[0, 0] + np.pi
+        x = x[0, 0] - np.pi
         loss = x*x
         return loss
 
@@ -48,10 +53,13 @@ class Controller(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(dim_t, 50),
             nn.Tanh(),
-            nn.Linear(50, 50),
+            nn.Linear(50, 10),
             nn.Tanh(),
-            nn.Linear(50, dim_u),
+            nn.Linear(10, 10),
+            nn.Tanh(),
+            nn.Linear(10, dim_u),
         )
+
 
         for m in self.net.modules():
             if isinstance(m, nn.Linear):
@@ -61,13 +69,18 @@ class Controller(nn.Module):
     def forward(self, t, x):
         return self.net(t)
 
+
+
+
+
+
 class pendulum_dynamics(nn.Module):
     def __init__(self):
         super(pendulum_dynamics, self).__init__()
         self.b = 1.
         self.g = 9.8
-        self.m = 0.5
-        self.L = 1.
+        self.m = 0.6
+        self.L = 1
 
         self.b_m = -self.b/self.m
         self.g_L = -self.g/self.L
@@ -94,7 +107,7 @@ class closed_loop_dynamics(nn.Module):
     def forward(self, t, x):
         t_plus = t.unsqueeze(0)
         t_plus = t_plus.unsqueeze(0)
-        u = self.controller(t_plus,x)
+        u =self.controller(t_plus,x)
         x_1 = self.dynamics(t,x,u)
         return x_1
 
@@ -113,7 +126,7 @@ class ODE_net(nn.Module):
 
 def loss_LQR(x,batch_t):
 
-    x1 = x[:,0,0] + np.pi
+    x1 = x[:,0,0] - np.pi
 
     y = x[:,0,1]
     loss = x1*x1
@@ -124,7 +137,11 @@ def loss_LQR(x,batch_t):
 
 x_0 = torch.tensor([[0.0,0.0]])
 
-t = torch.linspace(0.05,20,100)
+t = torch.linspace(0.05,30,500)
+
+
+def batch_t():
+    print("Hello")
 
 
 if __name__ == '__main__':
@@ -137,6 +154,8 @@ if __name__ == '__main__':
 
 
     controller = Controller(dim,dim)
+    controller.load_state_dict(torch.load(save_dir + model_name))
+
     pendulum = pendulum_dynamics()
     close_dyn = closed_loop_dynamics(pendulum, controller)
     func = ODE_net(close_dyn, loss_integer)
