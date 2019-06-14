@@ -9,8 +9,8 @@ save_dir = "/home/julen/Documents/IAS/PMP_NODE/torchdiffeq/examples/pendulum_dir
 
 
 
-T = 30. # Time horizon
-N = 200 # number of control intervals
+T = 60. # Time horizon
+N = 300 # number of control intervals
 
 # Declare model variables
 x1 = MX.sym('x1')
@@ -20,7 +20,7 @@ u = MX.sym('u')
 
 #########################################################################
 ######################### Model Equations ###############################
-################################ Pendulum #########################################
+################################ Pendulum ###############################
 
 b = 1.
 g = 9.8
@@ -80,8 +80,8 @@ ubg = []
 # "Lift" initial conditions
 Xk = MX.sym('X0', 2)
 w += [Xk]
-lbw += [0, 1]
-ubw += [0, 1]
+lbw += [0, 0]
+ubw += [0, 0]
 w0 += [0, 0]
 
 # Formulate the NLP
@@ -114,8 +114,8 @@ for k in range(N):
 
     if k>0:
         g += [Uk-Uk_old]
-        lbg += [-0.01]
-        ubg += [0.01]
+        lbg += [-0.03]
+        ubg += [0.03]
 
     Uk_old = Uk
 

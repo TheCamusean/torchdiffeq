@@ -50,7 +50,7 @@ class OdeintAdjointMethod(torch.autograd.Function):
 
 
                 dudtheta = torch.autograd.grad(
-                    u, f_params, [torch.ones([1, 1]), ],
+                    u, f_params, [torch.ones([1, 2]), ],
                     allow_unused=True, retain_graph=True
                 )
 
@@ -83,10 +83,10 @@ class OdeintAdjointMethod(torch.autograd.Function):
             vjp_params = vjp_y_and_params
 
             #### Extra term from cost
-            # if(dLdtheta[0] is not None):
-            #     vjp_params = [a - b for a, b in zip(vjp_y_and_params, dLdtheta)]
-            # if(dLdy is not None):
-            #     vjp_y = [a - b for a, b in zip(vjp_y, dLdy)]
+            if(dLdtheta[0] is not None):
+                vjp_params = [a - b for a, b in zip(vjp_y_and_params, dLdtheta)]
+            if(dLdy is not None):
+                vjp_y = [a - b for a, b in zip(vjp_y, dLdy)]
 
             # autograd.grad returns None if no gradient, set to zero.
             vjp_t = torch.zeros_like(t) if vjp_t is None else vjp_t
@@ -135,7 +135,7 @@ class OdeintAdjointMethod(torch.autograd.Function):
                 if len(adj_time) > 0: adj_time = adj_time[1]
                 if len(adj_params) > 0: adj_params = adj_params[1]
 
-                adj_y = tuple(adj_y_ + grad_output_[i - 1] for adj_y_, grad_output_ in zip(adj_y, grad_output))
+                #adj_y = tuple(adj_y_ + grad_output_[i - 1] for adj_y_, grad_output_ in zip(adj_y, grad_output))
 
                 del aug_y0, aug_ans
 

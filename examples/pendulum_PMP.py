@@ -22,7 +22,7 @@ parser.add_argument('--data_size', type=int, default=500)
 parser.add_argument('--batch_time', type=int, default=100)
 parser.add_argument('--batch_size', type=int, default=20)
 parser.add_argument('--niters', type=int, default=16000)
-parser.add_argument('--test_freq', type=int, default=20)
+parser.add_argument('--test_freq', type=int, default=2)
 parser.add_argument('--viz', action='store_true')
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--adjoint', action='store_true')
@@ -80,7 +80,7 @@ class pendulum_dynamics(nn.Module):
         self.b = 1.
         self.g = 9.8
         self.m = 0.6
-        self.L = 1
+        self.L = 1.
 
         self.b_m = -self.b/self.m
         self.g_L = -self.g/self.L
@@ -90,8 +90,8 @@ class pendulum_dynamics(nn.Module):
         out_x1 = self.b_m*x[:,1] + self.g_L*sin_x1
         out_x2 = x[:,0] + u[:,0]
 
-        out_x2 = out_x2.unsqueeze(1)
-        out_x1 = out_x1.unsqueeze(1)
+        out_x2 = out_x2.unsqueeze(0)
+        out_x1 = out_x1.unsqueeze(0)
         out = torch.cat([out_x1,out_x2],dim=1)
 
         return out
@@ -118,7 +118,7 @@ class ODE_net(nn.Module):
         self.dynamics = dynamics
         self.loss_integer = loss_integer
 
-    def forward(self, x,t):
+    def forward(self,t,x):
         out = odeint(self.dynamics, x, t, rtol=args.tol, atol=args.tol, integer_loss=self.loss_integer)
         return out
 
@@ -137,7 +137,7 @@ def loss_LQR(x,batch_t):
 
 x_0 = torch.tensor([[0.0,0.0]])
 
-t = torch.linspace(0.05,30,500)
+t = torch.linspace(0.0,30,200)
 
 
 def batch_t():
@@ -154,11 +154,32 @@ if __name__ == '__main__':
 
 
     controller = Controller(dim,dim)
-    controller.load_state_dict(torch.load(save_dir + model_name))
+    #controller.load_state_dict(torch.load(save_dir + model_name))
+
 
     pendulum = pendulum_dynamics()
     close_dyn = closed_loop_dynamics(pendulum, controller)
     func = ODE_net(close_dyn, loss_integer)
+
+    ############# Check imported controller #############
+    t_2 = t.unsqueeze(1)
+    t_2 = t_2.unsqueeze(1)
+    u_out = controller(t_2,x_0)
+    u_out_np = u_out.detach().numpy()
+    plt.plot(t.numpy(), u_out_np[:,0,0])
+    #plt.show()
+
+    pred_y = func(t, x_0)
+    y_plot = pred_y.detach().numpy()
+    timer = t.numpy()
+    # plt.close()
+
+    plt.plot(timer, y_plot[:, 0, 0])
+    plt.plot(timer, y_plot[:, 0, 1])
+    plt.show()
+
+
+    ####################################################
 
 
     optimizer = torch.optim.Adam(func.parameters(), lr=0.0001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
@@ -170,7 +191,7 @@ if __name__ == '__main__':
     for itr in range(1, args.niters + 1):
         optimizer.zero_grad()
 
-        pred_y = func(x_0, t)
+        pred_y = func(t,x_0)
         loss = torch.mean(loss_LQR(pred_y,t))
 
 
@@ -183,15 +204,28 @@ if __name__ == '__main__':
 
         if itr % args.test_freq == 0:
             with torch.no_grad():
-                pred_y = func(x_0, t)
+                pred_y = func(t,x_0)
+
+                t_2 = t.unsqueeze(1)
+                t_2 = t_2.unsqueeze(1)
+                u_out = controller(t_2,x_0)
+                u_out_np = u_out.numpy()
+                plt.clf()
+                plt.figure(1)
+                plt.plot(u_out_np[:,0,0])
+
 
                 y_plot = pred_y.numpy()
                 timer = t.numpy()
                 #plt.close()
-                plt.clf()
+
+                plt.figure(2)
                 plt.plot(timer,y_plot[:,0,0])
                 plt.plot(timer,y_plot[:,0,1])
                 plt.draw()
+
+                plt.savefig(save_dir+"pendulum_no_init.png")
+
 
                 plt.pause(0.001)
 

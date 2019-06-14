@@ -37,10 +37,8 @@ class Controller(nn.Module):
                 nn.init.normal_(m.weight, mean=0, std=0.1)
                 nn.init.constant_(m.bias, val=0)
 
-    def forward(self, t):
+    def forward(self, t,x):
         return self.net(t)
-
-
 
 
 time = np.asarray(out[0][1:])
@@ -81,7 +79,7 @@ if __name__ == '__main__':
         true_u,t = batch_data(170)
 
 
-        pred_u = controller(t)
+        pred_u = controller(t,t)
         loss = torch.mean(torch.abs(pred_u - true_u))
 
 

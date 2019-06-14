@@ -10,6 +10,9 @@ import torch.optim as optim
 
 from torchdiffeq._impl.adjoint_PMP import odeint_adjoint as odeint
 
+save_dir = "/home/julen/Documents/IAS/PMP_NODE/torchdiffeq/examples/LQR/"
+
+
 parser = argparse.ArgumentParser('ODE demo')
 parser.add_argument('--method', type=str, choices=['dopri5', 'adams'], default='dopri5')
 parser.add_argument('--data_size', type=int, default=500)
@@ -121,40 +124,30 @@ class system_linear_dynamics(nn.Module):
 
 
 class closed_loop_dynamics(nn.Module):
-    def __init__(self, linear_dyn, controller):
+    def __init__(self, dynamics, controller):
         super(closed_loop_dynamics, self).__init__()
 
-        self.linear_dyn = linear_dyn
+        self.dynamics = dynamics
         self.controller = controller
+
 
     def forward(self, t, x):
         t_plus = t.unsqueeze(0)
         u = self.controller(t_plus,x)
-        x_1 = self.linear_dyn(t,x,u)
+        x_1 = self.dynamics(t,x,u)
         return x_1
 
 
-class ODEBlock(nn.Module):
+class ODE_net(nn.Module):
 
-    def __init__(self, odefunc, integer_loss=None):
-        super(ODEBlock, self).__init__()
-        self.odefunc = odefunc
-        self.integration_time = torch.tensor([0, 1]).float()
+    def __init__(self, dynamics, loss_integer):
+        super(ODE_net, self).__init__()
+        self.dynamics = dynamics
+        self.loss_integer = loss_integer
 
-        self.integer_loss = integer_loss
-
-    def forward(self, x,t):
-        out = odeint(self.odefunc, x, t, rtol=args.tol, atol=args.tol, integer_loss= self.integer_loss)
+    def forward(self,t,x):
+        out = odeint(self.dynamics, x, t, rtol=args.tol, atol=args.tol, integer_loss=self.loss_integer)
         return out
-
-    # @property
-    # def nfe(self):
-    #     return self.odefunc.nfe
-    #
-    # @nfe.setter
-    # def nfe(self, value):
-    #     self.odefunc.nfe = value
-
 
 
 class RunningAverageMeter(object):
@@ -206,7 +199,7 @@ if __name__ == '__main__':
     controller = Controller(dim_t,dim)
     lin_dyn = system_linear_dynamics(A,B)
     close_loop = closed_loop_dynamics(lin_dyn,controller)
-    func = ODEBlock(close_loop,integer_loss)
+    func = ODE_net(close_loop,integer_loss)
 
 
 
@@ -233,7 +226,7 @@ if __name__ == '__main__':
         optimizer.zero_grad()
         batch_y0, batch_t, batch_y = get_batch()
 
-        pred_y = func(true_y0, batch_t)
+        pred_y = func(batch_t, true_y0)
         #pred_y2 = odeint(func2,batch_y0,batch_t)
 
 
@@ -260,7 +253,7 @@ if __name__ == '__main__':
 
         if itr % args.test_freq == 0:
             with torch.no_grad():
-                pred_y = func(true_y0, batch_t)
+                pred_y = func(batch_t,true_y0)
 
                 y_plot = pred_y.numpy()
                 timer = batch_t.numpy()
@@ -269,6 +262,7 @@ if __name__ == '__main__':
                 plt.plot(timer,y_plot[:,0,0])
                 plt.plot(timer,y_plot[:,0,1])
                 plt.draw()
+                plt.savefig(save_dir+"LQR_5.png")
 
                 plt.pause(0.001)
 
